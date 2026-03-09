@@ -200,7 +200,16 @@ export default function AdminMenuPage() {
         <div className="app">
             <header className="topbar">
                 <div className="brand">
-                    <span className="brandDot" />
+                    <img
+                        src="/favicon.png"
+                        alt="logo"
+                        style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: "8px",
+                            marginRight: 10
+                        }}
+                    />
                     <div className="brandText">
                         <div className="brandName">Roland Larper</div>
                         <div className="brandSub">Адмін • Категорії та Товари</div>
