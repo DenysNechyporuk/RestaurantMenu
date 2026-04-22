@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RestaurantSmartMenu.Domain.Entities;
+using RestaurantSmartMenu.Domain.Enums;
 
 namespace RestaurantSmartMenu.Infrastructure.Persistence;
 
@@ -28,5 +29,20 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderItem>()
             .Property(x => x.UnitPrice)
             .HasPrecision(10, 2);
+        
+        modelBuilder.Entity<Category>()
+            .HasIndex(x => x.Name)
+            .IsUnique();
+        
+        modelBuilder.Entity<MenuItem>()
+            .HasIndex(x => x.Name)
+            .IsUnique();
+        
+        modelBuilder
+            .Entity<OrderItem>()
+            .Property(e => e.Status)
+            .HasConversion(
+                v => v.ToString(),
+                v => (OrderItemStatus)Enum.Parse(typeof(OrderItemStatus), v));
     }
 }

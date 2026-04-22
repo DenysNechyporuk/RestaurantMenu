@@ -1,3 +1,5 @@
+using RestaurantSmartMenu.Domain.Enums;
+
 namespace RestaurantSmartMenu.Domain.Entities;
 
 public class OrderItem
@@ -12,4 +14,6 @@ public class OrderItem
 
     public int Qty { get; set; }
     public decimal UnitPrice { get; set; }
+
+    public OrderItemStatus Status { get; set; }
 }

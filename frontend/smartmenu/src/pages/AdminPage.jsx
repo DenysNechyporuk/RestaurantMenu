@@ -7,7 +7,7 @@ function statusToText(s) {
     if (s === 0) return "New";
     if (s === 1) return "InProgress";
     if (s === 2) return "Done";
-    if (s === 3) return "Canceled";
+    if (s === 3) return "Cancelled";
     return String(s);
 }
 
@@ -54,7 +54,6 @@ export default function AdminPage() {
         fetchOrders();
         const t = setInterval(fetchOrders, 2000);
         return () => clearInterval(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [status]);
 
     const updateStatus = async (id, newStatusNumber) => {
@@ -118,7 +117,7 @@ export default function AdminPage() {
                         <option value="New">New</option>
                         <option value="InProgress">InProgress</option>
                         <option value="Done">Done</option>
-                        <option value="Canceled">Canceled</option>
+                        <option value="Cancelled">Cancelled</option>
                     </select>
 
                     <button className="btn btnPrimary" onClick={fetchOrders}>
