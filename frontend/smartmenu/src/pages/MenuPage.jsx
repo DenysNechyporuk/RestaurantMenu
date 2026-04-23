@@ -3,11 +3,16 @@ import { useLocation } from "react-router-dom";
 import "../app.css";
 
 const API_URL = "http://localhost:5046";
+
 const toAssetUrl = (value) => {
     if (!value) return "";
     if (value.startsWith("http://") || value.startsWith("https://")) return value;
     return `${API_URL}${value}`;
 };
+
+function getErrorText(error) {
+    return error instanceof Error ? error.message : String(error);
+}
 
 // приймає різні формати відповіді бекенда і приводить до 1 формату
 function normalizeCategories(data) {
@@ -27,33 +32,56 @@ function normalizeCategories(data) {
         .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
 }
 
+function statusToText(status) {
+    if (status === 0) return "Новий";
+    if (status === 1) return "Готується";
+    if (status === 2) return "Готово";
+    if (status === 3) return "Відмінено";
+    return String(status);
+}
+
+function orderToCart(order) {
+    if (!order?.items || !Array.isArray(order.items)) return [];
+
+    return order.items
+        .map((item) => ({
+            menuItemId: item.menuItemId,
+            name: item.name ?? "Товар",
+            unitPrice: Number(item.unitPrice) || 0,
+            qty: Number(item.qty) || 0,
+        }))
+        .filter((item) => item.qty > 0);
+}
+
 export default function MenuPage() {
     const loc = useLocation();
     const params = new URLSearchParams(loc.search);
     const tableId = Number(params.get("table") ?? params.get("tableId") ?? 0);
 
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [menuLoaded, setMenuLoaded] = useState(false);
 
     const [categories, setCategories] = useState([]);
+    const [activeOrder, setActiveOrder] = useState(null);
 
     // фільтри
     const [selectedCatId, setSelectedCatId] = useState("all");
     const [search, setSearch] = useState("");
-    const [onlyAvailable, setOnlyAvailable] = useState(true);
+    const [onlyAvailable] = useState(true);
 
     // кошик
     // [{ menuItemId, name, unitPrice, qty }]
     const [cart, setCart] = useState([]);
     const [note, setNote] = useState("");
     const [placing, setPlacing] = useState(false);
+    const [isEditingOrder, setIsEditingOrder] = useState(false);
 
     // ------------- LOAD MENU -------------
     useEffect(() => {
-        const load = async () => {
+        const loadMenu = async () => {
             try {
-                setLoading(true);
                 setError("");
+                setMenuLoaded(false);
 
                 if (!tableId || tableId <= 0) {
                     setCategories([]);
@@ -61,15 +89,15 @@ export default function MenuPage() {
                     return;
                 }
 
-                const res = await fetch(`${API_URL}/api/menu?tableId=${tableId}`);
-                if (!res.ok) throw new Error(await res.text());
+                const menuRes = await fetch(`${API_URL}/api/menu?tableId=${tableId}`);
 
-                const data = await res.json();
-                const normalized = normalizeCategories(data);
+                if (!menuRes.ok) throw new Error(await menuRes.text());
+
+                const menuData = await menuRes.json();
+                const normalized = normalizeCategories(menuData);
 
                 setCategories(normalized);
 
-                // якщо зараз вибрана категорія зникла — скинути
                 if (
                     selectedCatId !== "all" &&
                     !normalized.find((c) => String(c.id) === String(selectedCatId))
@@ -77,15 +105,71 @@ export default function MenuPage() {
                     setSelectedCatId("all");
                 }
             } catch (e) {
-                setError(String(e));
+                setError(getErrorText(e));
             } finally {
-                setLoading(false);
+                setMenuLoaded(true);
             }
         };
 
-        load();
+        loadMenu();
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tableId]);
+
+    // ------------- LOAD ACTIVE ORDER -------------
+    useEffect(() => {
+        let isDisposed = false;
+
+        if (isEditingOrder) {
+            return undefined;
+        }
+
+        const loadOrder = async () => {
+            try {
+                if (!tableId || tableId <= 0) {
+                    setActiveOrder(null);
+                    setCart([]);
+                    setNote("");
+                    setIsEditingOrder(false);
+                    return;
+                }
+
+                const orderRes = await fetch(`${API_URL}/api/menu/order?tableId=${tableId}`);
+
+                if (!orderRes.ok && orderRes.status !== 204) throw new Error(await orderRes.text());
+
+                if (isDisposed) return;
+
+                if (orderRes.status === 204) {
+                    setActiveOrder(null);
+                    setCart([]);
+                    setNote("");
+                    setIsEditingOrder(false);
+                    return;
+                }
+
+                const orderData = await orderRes.json();
+
+                if (isDisposed) return;
+
+                setActiveOrder(orderData);
+                setCart(orderToCart(orderData));
+                setNote(orderData?.note ?? "");
+            } catch (e) {
+                if (!isDisposed) {
+                    setError(getErrorText(e));
+                }
+            }
+        };
+
+        loadOrder();
+        const timer = setInterval(loadOrder, 2000);
+
+        return () => {
+            isDisposed = true;
+            clearInterval(timer);
+        };
+    }, [tableId, isEditingOrder]);
 
     // ------------- FILTERED MENU -------------
     const filteredCategories = useMemo(() => {
@@ -115,6 +199,10 @@ export default function MenuPage() {
         [cart]
     );
 
+    const beginEditingOrder = () => {
+        setIsEditingOrder(true);
+    };
+
     const addToCart = (it) => {
         if (!it?.isAvailable) return;
 
@@ -122,6 +210,7 @@ export default function MenuPage() {
         const name = it.name ?? "Товар";
         const price = Number(it.price) || 0;
 
+        beginEditingOrder();
         setCart((prev) => {
             const idx = prev.findIndex((x) => x.menuItemId === id);
             if (idx >= 0) {
@@ -133,21 +222,28 @@ export default function MenuPage() {
         });
     };
 
-    const inc = (id) =>
+    const inc = (id) => {
+        beginEditingOrder();
         setCart((prev) =>
             prev.map((x) => (x.menuItemId === id ? { ...x, qty: x.qty + 1 } : x))
         );
+    };
 
-    const dec = (id) =>
+    const dec = (id) => {
+        beginEditingOrder();
         setCart((prev) =>
             prev
                 .map((x) => (x.menuItemId === id ? { ...x, qty: x.qty - 1 } : x))
                 .filter((x) => x.qty > 0)
         );
+    };
 
-    const removeLine = (id) => setCart((prev) => prev.filter((x) => x.menuItemId !== id));
+    const removeLine = (id) => {
+        beginEditingOrder();
+        setCart((prev) => prev.filter((x) => x.menuItemId !== id));
+    };
 
-    // ------------- PLACE ORDER -------------
+    // ------------- CREATE / UPDATE ORDER -------------
     const placeOrder = async () => {
         if (!cart.length) return;
 
@@ -155,25 +251,41 @@ export default function MenuPage() {
         setError("");
 
         try {
-            const payload = {
-                tableId,
-                note: note.trim() || null,
-                items: cart.map((x) => ({ menuItemId: x.menuItemId, qty: x.qty })),
-            };
+            const items = cart.map((x) => ({ menuItemId: x.menuItemId, qty: x.qty }));
+            const hasActiveOrder = Number.isFinite(activeOrder?.id);
+            const payload = hasActiveOrder
+                ? {
+                    note: note.trim() || null,
+                    items,
+                }
+                : {
+                    tableId,
+                    note: note.trim() || null,
+                    items,
+                };
 
-            const res = await fetch(`${API_URL}/api/orders`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+            const res = await fetch(
+                hasActiveOrder
+                    ? `${API_URL}/api/orders/${activeOrder.id}`
+                    : `${API_URL}/api/orders`,
+                {
+                    method: hasActiveOrder ? "PUT" : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                }
+            );
 
             if (!res.ok) throw new Error(await res.text());
 
-            setCart([]);
-            setNote("");
-            alert("Замовлення відправлено ✅");
+            const savedOrder = await res.json();
+            setActiveOrder(savedOrder);
+            setCart(orderToCart(savedOrder));
+            setNote(savedOrder?.note ?? "");
+            setIsEditingOrder(false);
+
+            alert(hasActiveOrder ? "Замовлення оновлено ✅" : "Замовлення відправлено ✅");
         } catch (e) {
-            setError(String(e));
+            setError(getErrorText(e));
         } finally {
             setPlacing(false);
         }
@@ -191,7 +303,7 @@ export default function MenuPage() {
                             width: 32,
                             height: 32,
                             borderRadius: "8px",
-                            marginRight: 10
+                            marginRight: 10,
                         }}
                     />
                     <div className="brandText">
@@ -209,7 +321,6 @@ export default function MenuPage() {
                 <section className="menuCol">
                     {error && <div className="alert">Помилка: {error}</div>}
 
-                    {/* ФІЛЬТРИ */}
                     <div className="card" style={{ marginBottom: 14 }}>
                         <div className="cardTop" style={{ marginBottom: 10 }}>
                             <div className="cardTitle">Фільтри</div>
@@ -234,23 +345,21 @@ export default function MenuPage() {
                                 <label className="label">Пошук</label>
                                 <input
                                     className="input"
-                                    placeholder="Напр., піца, кола…"
+                                    placeholder="Напр., піца, кола..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </div>
-                            
                         </div>
                     </div>
 
-                    {loading && <div className="mutedSmall">Завантаження…</div>}
+                    {!menuLoaded && <div className="mutedSmall">Завантаження...</div>}
 
-                    {!loading && !error && filteredCategories.length === 0 && (
+                    {menuLoaded && !error && filteredCategories.length === 0 && (
                         <div className="mutedSmall">Нічого не знайдено.</div>
                     )}
 
-                    {/* КАТЕГОРІЇ */}
-                    {!loading && !error && filteredCategories.map((cat) => (
+                    {menuLoaded && filteredCategories.map((cat) => (
                         <div key={cat.id} style={{ marginBottom: 18 }}>
                             <h2 className="sectionTitle">{cat.name}</h2>
 
@@ -292,9 +401,13 @@ export default function MenuPage() {
                     ))}
                 </section>
 
-                {/* КОШИК */}
                 <aside className="cartBox">
                     <div className="cartTitle">Кошик</div>
+                    <div className="mutedSmall" style={{ marginBottom: 12 }}>
+                        {activeOrder
+                            ? `Замовлення #${activeOrder.id} • ${statusToText(activeOrder.status)}`
+                            : "Нове замовлення"}
+                    </div>
 
                     {cart.length === 0 ? (
                         <div className="mutedSmall">Порожньо</div>
@@ -330,7 +443,10 @@ export default function MenuPage() {
                                     className="input"
                                     placeholder="Напр., без цибулі"
                                     value={note}
-                                    onChange={(e) => setNote(e.target.value)}
+                                    onChange={(e) => {
+                                        beginEditingOrder();
+                                        setNote(e.target.value);
+                                    }}
                                 />
                             </div>
 
@@ -339,7 +455,9 @@ export default function MenuPage() {
                                 onClick={placeOrder}
                                 disabled={placing || cart.length === 0}
                             >
-                                {placing ? "Відправляю…" : "Замовити"}
+                                {placing
+                                    ? (activeOrder ? "Оновляю..." : "Відправляю...")
+                                    : (activeOrder ? "Оновити замовлення" : "Замовити")}
                             </button>
                         </div>
                     )}
