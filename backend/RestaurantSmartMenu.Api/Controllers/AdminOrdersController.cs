@@ -15,7 +15,7 @@ public class AdminOrdersController : ControllerBase
 
     
     [HttpGet]
-    public async Task<ActionResult<List<OrderDto>>> Get([FromQuery] OrderStatus? status = null)
+    public async Task<ActionResult<List<OrderDto>>> Get([FromQuery] OrderStatus[]? statuses = null)
     {
         var query = _db.Orders
             .AsNoTracking()
@@ -24,8 +24,8 @@ public class AdminOrdersController : ControllerBase
             .OrderByDescending(o => o.CreatedAtUtc)
             .AsQueryable();
 
-        if (status.HasValue)
-            query = query.Where(o => o.Status == status.Value);
+        if (statuses is { Length: > 0 })
+            query = query.Where(o => statuses.Contains(o.Status));
 
         var orders = await query.Take(200).ToListAsync();
 
@@ -55,7 +55,6 @@ public class AdminOrdersController : ControllerBase
         return Ok(result);
     }
 
-    // PUT /api/admin/orders/{id}/status
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest request)
     {

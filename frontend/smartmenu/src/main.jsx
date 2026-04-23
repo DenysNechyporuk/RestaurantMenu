@@ -5,10 +5,11 @@ import "./index.css";
 
 import LandingPage from "./pages/LandingPage.jsx";
 import MenuPage from "./pages/MenuPage.jsx";
-import AdminPage from "./pages/AdminPage.jsx";
+import AdminOrdersPage from "./pages/AdminOrdersPage.jsx";
 import AdminMenuPage from "./pages/AdminMenuPage.jsx";
 import AdminQrPage from "./pages/AdminQrPage.jsx";
 import RequireAdmin from "./auth/RequireAdmin.jsx";
+import AdminLoginPage from "./pages/AdminLoginPage.jsx";
 
 function RootRoute() {
     const loc = useLocation();
@@ -31,12 +32,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 <Route
                     path="/admin"
                     element={
+                        <AdminLoginPage />
+                    }
+                />
+                
+                <Route
+                    path="/admin/orders"
+                    element={
                         <RequireAdmin>
-                            <AdminPage />
+                            <AdminOrdersPage />
                         </RequireAdmin>
                     }
                 />
-
+                
                 <Route
                     path="/admin/menu"
                     element={

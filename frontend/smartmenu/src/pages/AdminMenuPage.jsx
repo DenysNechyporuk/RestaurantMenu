@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "../app.css";
 
 const API_URL = "http://localhost:5046";
+const toAssetUrl = (value) => {
+    if (!value) return "";
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    if (value.startsWith("blob:")) return value;
+    return `${API_URL}${value}`;
+};
 
 export default function AdminMenuPage() {
+    const imageInputRef = useRef(null);
     const [categories, setCategories] = useState([]);
     const [items, setItems] = useState([]);
     const [q, setQ] = useState("");
@@ -19,7 +26,8 @@ export default function AdminMenuPage() {
         name: "",
         description: "",
         price: 0,
-        imageUrl: "",
+        imageFile: null,
+        imagePreviewUrl: "",
         isAvailable: true,
     });
 
@@ -62,6 +70,11 @@ export default function AdminMenuPage() {
     }, [items, q]);
 
     const catNameById = (id) => categories.find((c) => c.id === id)?.name ?? `#${id}`;
+    const resetImageInput = () => {
+        if (imageInputRef.current) {
+            imageInputRef.current.value = "";
+        }
+    };
 
     // ---------- categories ----------
     const startCreateCategory = () => setCatForm({ id: null, name: "", sortOrder: 0 });
@@ -120,26 +133,34 @@ export default function AdminMenuPage() {
 
     // ---------- items ----------
     const startCreateItem = () =>
+    {
+        resetImageInput();
         setItemForm({
             id: null,
             categoryId: categories[0]?.id ?? 1,
             name: "",
             description: "",
             price: 0,
-            imageUrl: "",
+            imageFile: null,
+            imagePreviewUrl: "",
             isAvailable: true,
         });
+    };
 
     const startEditItem = (it) =>
+    {
+        resetImageInput();
         setItemForm({
             id: it.id,
             categoryId: it.categoryId,
             name: it.name ?? "",
             description: it.description ?? "",
             price: it.price ?? 0,
-            imageUrl: it.imageUrl ?? "",
+            imageFile: null,
+            imagePreviewUrl: it.imageUrl ?? "",
             isAvailable: !!it.isAvailable,
         });
+    };
 
     const saveItem = async () => {
         const name = (itemForm.name || "").trim();
@@ -148,28 +169,27 @@ export default function AdminMenuPage() {
         setSavingItem(true);
         setError("");
 
-        const payload = {
-            categoryId: Number(itemForm.categoryId),
-            name,
-            description: itemForm.description?.trim() || null,
-            price: Number(itemForm.price),
-            imageUrl: itemForm.imageUrl?.trim() || null,
-            isAvailable: !!itemForm.isAvailable,
-        };
+        const payload = new FormData();
+        payload.append("categoryId", String(Number(itemForm.categoryId)));
+        payload.append("name", name);
+        payload.append("description", itemForm.description?.trim() || "");
+        payload.append("price", String(Number(itemForm.price)));
+        payload.append("isAvailable", String(!!itemForm.isAvailable));
+        if (itemForm.imageFile) {
+            payload.append("imageUrl", itemForm.imageFile);
+        }
 
         try {
             if (itemForm.id == null) {
                 const res = await fetch(`${API_URL}/api/admin/menu/items`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 if (!res.ok) throw new Error(await res.text());
             } else {
                 const res = await fetch(`${API_URL}/api/admin/menu/items/${itemForm.id}`, {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 if (!res.ok) throw new Error(await res.text());
             }
@@ -323,14 +343,27 @@ export default function AdminMenuPage() {
                             <label className="label">Ціна (грн)</label>
                             <input className="input" type="number" step="0.01" value={itemForm.price} onChange={(e) => setItemForm((f) => ({ ...f, price: e.target.value }))} />
 
-                            <label className="label">Image URL (/images/xxx.jpg)</label>
-                            <input className="input" value={itemForm.imageUrl} onChange={(e) => setItemForm((f) => ({ ...f, imageUrl: e.target.value }))} placeholder="/images/pizza.jpg" />
+                            <label className="label">Зображення</label>
+                            <input
+                                ref={imageInputRef}
+                                className="input"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    setItemForm((f) => ({
+                                        ...f,
+                                        imageFile: file,
+                                        imagePreviewUrl: file ? URL.createObjectURL(file) : f.imagePreviewUrl,
+                                    }));
+                                }}
+                            />
 
-                            {itemForm.imageUrl && (
+                            {itemForm.imagePreviewUrl && (
                                 <div style={{ marginTop: 10 }}>
                                     <div className="mutedSmall">Превʼю:</div>
                                     <img
-                                        src={itemForm.imageUrl}
+                                        src={toAssetUrl(itemForm.imagePreviewUrl)}
                                         alt="preview"
                                         style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 12, marginTop: 6, border: "1px solid rgba(255,255,255,.08)" }}
                                         onError={(e) => (e.currentTarget.style.display = "none")}

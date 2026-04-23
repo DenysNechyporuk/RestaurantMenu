@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using RestaurantSmartMenu.Infrastructure.Persistence;
 using RestaurantSmartMenu.Infrastructure.Seed;
 
@@ -6,14 +7,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// DB (SQLite)
 builder.Services.AddDbContext<AppDbContext>(opt =>
 {
     var cs = builder.Configuration.GetConnectionString("Default");
     opt.UseSqlite(cs);
 });
 
-// CORS (щоб React міг звертатись)
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("frontend", p =>
@@ -24,13 +23,23 @@ builder.Services.AddCors(opt =>
 });
 
 var app = builder.Build();
+var webRoot = app.Environment.WebRootPath;
+if (string.IsNullOrWhiteSpace(webRoot))
+{
+    webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+}
+
+Directory.CreateDirectory(webRoot);
 
 app.UseCors("frontend");
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(webRoot)
+});
 
 
 app.MapControllers();
 
-// Seed при старті
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

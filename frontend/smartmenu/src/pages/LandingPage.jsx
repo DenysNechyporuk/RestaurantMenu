@@ -13,15 +13,7 @@ export default function LandingPage() {
         if (!Number.isFinite(n) || n <= 0) return setErr("Невірний номер столу");
         nav(`/?table=${n}`);
     };
-
-    const login = () => {
-        if (pass === "admin") {
-            localStorage.setItem("admin_auth", "1");
-            nav("/admin");
-        } else {
-            setErr("Невірний пароль");
-        }
-    };
+    
 
     return (
         <div className="app">
@@ -47,11 +39,11 @@ export default function LandingPage() {
             <main style={{ padding: 18, maxWidth: 860, margin: "0 auto" }}>
                 {err && <div className="alert">Помилка: {err}</div>}
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div style={{ maxWidth: 400, margin: "0 auto" }}>
                     <div className="card">
                         <div className="cardTitle">Гість</div>
                         <div className="mutedSmall" style={{ marginTop: 6 }}>
-                            Введи номер столу або скануй QR.
+                            Введи номер столу.
                         </div>
 
                         <label className="label">Номер столу</label>
@@ -68,25 +60,7 @@ export default function LandingPage() {
                         </button>
                     </div>
 
-                    <div className="card">
-                        <div className="cardTitle">Адмін</div>
-                        <div className="mutedSmall" style={{ marginTop: 6 }}>
-                            Пароль фіксований для курсової.
-                        </div>
-
-                        <label className="label">Пароль</label>
-                        <input
-                            className="input"
-                            type="password"
-                            value={pass}
-                            onChange={(e) => setPass(e.target.value)}
-                            placeholder="admin"
-                        />
-
-                        <button className="btn btnWide btnPrimary" onClick={login}>
-                            Увійти
-                        </button>
-                    </div>
+                    
                 </div>
             </main>
         </div>

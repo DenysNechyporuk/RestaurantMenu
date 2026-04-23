@@ -3,6 +3,11 @@ import { useLocation } from "react-router-dom";
 import "../app.css";
 
 const API_URL = "http://localhost:5046";
+const toAssetUrl = (value) => {
+    if (!value) return "";
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    return `${API_URL}${value}`;
+};
 
 // приймає різні формати відповіді бекенда і приводить до 1 формату
 function normalizeCategories(data) {
@@ -196,7 +201,6 @@ export default function MenuPage() {
                 </div>
 
                 <div className="topLinks">
-                    <a className="topLink" href="/admin">Адмін</a>
                     <div className="topLink">Кошик: {cartTotal} грн</div>
                 </div>
             </header>
@@ -235,17 +239,7 @@ export default function MenuPage() {
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </div>
-
-                            <div style={{ display: "flex", alignItems: "end" }}>
-                                <label className="label" style={{ display: "flex", gap: 10, alignItems: "center", margin: 0 }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={onlyAvailable}
-                                        onChange={(e) => setOnlyAvailable(e.target.checked)}
-                                    />
-                                    Тільки в наявності
-                                </label>
-                            </div>
+                            
                         </div>
                     </div>
 
@@ -266,7 +260,7 @@ export default function MenuPage() {
                                         {it.imageUrl && (
                                             <img
                                                 className="cardImg"
-                                                src={it.imageUrl}
+                                                src={toAssetUrl(it.imageUrl)}
                                                 alt={it.name}
                                                 loading="lazy"
                                                 onError={(e) => (e.currentTarget.style.display = "none")}

@@ -4,7 +4,7 @@
   --panel2:#0f1117;
   --border:rgba(255,255,255,.08);
   --text:#e9e9ef;
-  --muted:rgba(233,233,239,.65);
+  --muted: rgb(78 78 78 / 0, 65);
   --shadow:0 12px 40px rgba(0,0,0,.55);
   --red:#ff2b4f;
   --red2:#d61f3f;
@@ -101,7 +101,7 @@ body{
   border-radius:999px;
   border:1px solid var(--border);
   background: rgba(0,0,0,.18);
-  color:var(--muted);
+  color: rgb(78 78 78 / 0, 65);
 }
 
 .cartBox{
@@ -151,6 +151,37 @@ body{
   outline:none;
 }
 .input:focus{border-color: rgba(255,43,79,.55)}
+
+.statusFilterBox{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background: rgba(0,0,0,.22);
+}
+
+.statusCheckbox{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background: rgba(255,255,255,.03);
+  cursor:pointer;
+  user-select:none;
+}
+
+.statusCheckbox input{
+  accent-color: var(--red);
+  margin:0;
+}
+
+.statusCheckbox span{
+  font-size:14px;
+}
 
 .btn{
   border:1px solid var(--border);

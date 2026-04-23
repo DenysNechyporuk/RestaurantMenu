@@ -11,7 +11,12 @@ namespace RestaurantSmartMenu.Api.Controllers;
 public class AdminMenuController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public AdminMenuController(AppDbContext db) => _db = db;
+    private readonly IWebHostEnvironment _environment;
+    public AdminMenuController(AppDbContext db, IWebHostEnvironment environment)
+    {
+        _db = db;
+        _environment = environment;
+    }
 
     
     [HttpGet("categories")]
@@ -101,13 +106,14 @@ public class AdminMenuController : ControllerBase
 
     
     [HttpPost("items")]
-    public async Task<ActionResult> CreateItem([FromBody] UpsertMenuItemRequest req)
+    public async Task<ActionResult> CreateItem([FromForm] UpsertMenuItemRequest req)
     {
         var categoryExists = await _db.Categories.AnyAsync(c => c.Id == req.CategoryId);
         if (!categoryExists) return BadRequest("CategoryId not found");
 
         var name = (req.Name ?? "").Trim();
         if (name.Length == 0) return BadRequest("Name is required");
+        var imageUrl = await SaveImageAsync(req.ImageUrl);
 
         var item = new MenuItem
         {
@@ -115,7 +121,7 @@ public class AdminMenuController : ControllerBase
             Name = name,
             Description = req.Description?.Trim(),
             Price = req.Price,
-            ImageUrl = req.ImageUrl?.Trim(),
+            ImageUrl = imageUrl,
             IsAvailable = req.IsAvailable
         };
 
@@ -127,7 +133,7 @@ public class AdminMenuController : ControllerBase
 
     
     [HttpPut("items/{id:int}")]
-    public async Task<IActionResult> UpdateItem(int id, [FromBody] UpsertMenuItemRequest req)
+    public async Task<IActionResult> UpdateItem(int id, [FromForm] UpsertMenuItemRequest req)
     {
         var item = await _db.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
         if (item == null) return NotFound();
@@ -142,7 +148,11 @@ public class AdminMenuController : ControllerBase
         item.Name = name;
         item.Description = req.Description?.Trim();
         item.Price = req.Price;
-        item.ImageUrl = req.ImageUrl?.Trim();
+        if (req.ImageUrl is not null)
+        {
+            DeleteImage(item.ImageUrl);
+            item.ImageUrl = await SaveImageAsync(req.ImageUrl);
+        }
         item.IsAvailable = req.IsAvailable;
 
         await _db.SaveChangesAsync();
@@ -156,8 +166,51 @@ public class AdminMenuController : ControllerBase
         var item = await _db.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
         if (item == null) return NotFound();
 
+        DeleteImage(item.ImageUrl);
         _db.MenuItems.Remove(item);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task<string?> SaveImageAsync(IFormFile? image)
+    {
+        if (image is null || image.Length == 0) return null;
+
+        var webRoot = _environment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRoot))
+        {
+            webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        }
+
+        var uploadsDir = Path.Combine(webRoot, "uploads", "menu-items");
+        Directory.CreateDirectory(uploadsDir);
+
+        var extension = Path.GetExtension(image.FileName);
+        var fileName = $"{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        await using var stream = System.IO.File.Create(filePath);
+        await image.CopyToAsync(stream);
+
+        return $"/uploads/menu-items/{fileName}";
+    }
+
+    private void DeleteImage(string? imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl)) return;
+        if (!imageUrl.StartsWith("/uploads/menu-items/", StringComparison.OrdinalIgnoreCase)) return;
+
+        var relativePath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+        var webRoot = _environment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRoot))
+        {
+            webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        }
+
+        var filePath = Path.Combine(webRoot, relativePath);
+        if (System.IO.File.Exists(filePath))
+        {
+            System.IO.File.Delete(filePath);
+        }
     }
 }

@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import "./app.css";
 
 const API_URL = "http://localhost:5046";
+const toAssetUrl = (value) => {
+    if (!value) return "";
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    return `${API_URL}${value}`;
+};
 
 function getTableFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -134,7 +139,7 @@ export default function App() {
                                             {item.imageUrl && (
                                                 <img
                                                     className="cardImg"
-                                                    src={item.imageUrl}
+                                                    src={toAssetUrl(item.imageUrl)}
                                                     alt={item.name}
                                                     loading="lazy"
                                                     onError={(e) => {
