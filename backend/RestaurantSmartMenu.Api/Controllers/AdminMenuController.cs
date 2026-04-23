@@ -13,9 +13,7 @@ public class AdminMenuController : ControllerBase
     private readonly AppDbContext _db;
     public AdminMenuController(AppDbContext db) => _db = db;
 
-    // ------------------- CATEGORIES -------------------
-
-    // GET /api/admin/menu/categories
+    
     [HttpGet("categories")]
     public async Task<ActionResult> GetCategories()
     {
@@ -29,7 +27,7 @@ public class AdminMenuController : ControllerBase
         return Ok(cats);
     }
 
-    // POST /api/admin/menu/categories
+    
     [HttpPost("categories")]
     public async Task<ActionResult> CreateCategory([FromBody] CreateCategoryRequest req)
     {
@@ -48,7 +46,7 @@ public class AdminMenuController : ControllerBase
         return Ok(new { cat.Id });
     }
 
-    // PUT /api/admin/menu/categories/{id}
+    
     [HttpPut("categories/{id:int}")]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryRequest req)
     {
@@ -64,12 +62,10 @@ public class AdminMenuController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
-
-    // DELETE /api/admin/menu/categories/{id}
+    
     [HttpDelete("categories/{id:int}")]
     public async Task<IActionResult> DeleteCategory(int id)
     {
-        // якщо є товари в категорії — не даємо видалити (щоб не ламати FK)
         var hasItems = await _db.MenuItems.AnyAsync(x => x.CategoryId == id);
         if (hasItems) return BadRequest("Category has menu items. Move/delete items first.");
 
@@ -81,9 +77,7 @@ public class AdminMenuController : ControllerBase
         return NoContent();
     }
 
-    // ------------------- ITEMS -------------------
-
-    // GET /api/admin/menu/items
+    
     [HttpGet("items")]
     public async Task<ActionResult> GetItems()
     {
@@ -105,7 +99,7 @@ public class AdminMenuController : ControllerBase
         return Ok(items);
     }
 
-    // POST /api/admin/menu/items
+    
     [HttpPost("items")]
     public async Task<ActionResult> CreateItem([FromBody] UpsertMenuItemRequest req)
     {
@@ -131,7 +125,7 @@ public class AdminMenuController : ControllerBase
         return Ok(new { item.Id });
     }
 
-    // PUT /api/admin/menu/items/{id}
+    
     [HttpPut("items/{id:int}")]
     public async Task<IActionResult> UpdateItem(int id, [FromBody] UpsertMenuItemRequest req)
     {
@@ -155,7 +149,7 @@ public class AdminMenuController : ControllerBase
         return NoContent();
     }
 
-    // DELETE /api/admin/menu/items/{id}
+    
     [HttpDelete("items/{id:int}")]
     public async Task<IActionResult> DeleteItem(int id)
     {

@@ -13,7 +13,7 @@ public class AdminOrdersController : ControllerBase
     private readonly AppDbContext _db;
     public AdminOrdersController(AppDbContext db) => _db = db;
 
-    // GET /api/admin/orders?status=New
+    
     [HttpGet]
     public async Task<ActionResult<List<OrderDto>>> Get([FromQuery] OrderStatus? status = null)
     {
