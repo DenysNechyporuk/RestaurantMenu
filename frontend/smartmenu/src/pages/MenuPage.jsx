@@ -43,14 +43,29 @@ function statusToText(status) {
 function orderToCart(order) {
     if (!order?.items || !Array.isArray(order.items)) return [];
 
-    return order.items
-        .map((item) => ({
-            menuItemId: item.menuItemId,
+    const groupedItems = new Map();
+
+    for (const item of order.items) {
+        const menuItemId = Number(item.menuItemId) || 0;
+        const qty = Number(item.qty) || 0;
+
+        if (menuItemId <= 0 || qty <= 0) continue;
+
+        const existingItem = groupedItems.get(menuItemId);
+        if (existingItem) {
+            existingItem.qty += qty;
+            continue;
+        }
+
+        groupedItems.set(menuItemId, {
+            menuItemId,
             name: item.name ?? "Товар",
             unitPrice: Number(item.unitPrice) || 0,
-            qty: Number(item.qty) || 0,
-        }))
-        .filter((item) => item.qty > 0);
+            qty,
+        });
+    }
+
+    return Array.from(groupedItems.values());
 }
 
 export default function MenuPage() {
@@ -466,3 +481,4 @@ export default function MenuPage() {
         </div>
     );
 }
+
